@@ -43,6 +43,8 @@ class MusketType {
 	protected CollectionType collectionType = null
 	@Accessors
 	protected DistributionMode distributionMode = DistributionMode.COPY
+	@Accessors
+	protected long size = 0
 	protected String structName = null
 	protected boolean isArray = false
 	protected boolean isMatrix = false
@@ -170,6 +172,10 @@ class MusketType {
 	def isCollection() {
 		return isArray || isMatrix || type === PrimitiveTypeLiteral.AUTO
 	}
+	
+	def isStruct(){
+		return structName !== null
+	}
 
 	override hashCode() {
 		Objects.hash(this.type, this.structName, this.isArray, this.isMatrix, this.distributionMode)
@@ -220,11 +226,14 @@ class MusketType {
 	def getCollectionType() {
 		return this.collectionType
 	}
-	
+
 	def getPrimitiveType() {
 		return this.primitiveType
 	}
 
+	/** 
+	 * Map Musket type to C++ type
+	 */
 	def getCppType() {
 		var primtype = ''
 		// struct
@@ -243,9 +252,34 @@ class MusketType {
 		}
 
 		if (isArray || isMatrix) {
-			return 'std::vector<' + primtype + '>'
+			if(distributionMode == DistributionMode.LOC)
+				return 'std::array<' + primtype + ',' + size + '>'
+			else{
+				return 'std::vector<' + primtype + '>'
+			}			
 		} else {
 			return primtype
+		}
+	}
+
+	/** 
+	 * Map Musket type to MPI type
+	 */
+	def getMPIType() {
+		var mpi_type = ''
+		// struct
+		if (structName !== null) {
+			mpi_type = structName + "_mpi_type"
+		} else {
+			// primitive type
+			switch (type) {
+				case BOOL: mpi_type = 'MPI_BOOL'
+				case DOUBLE: mpi_type = 'MPI_DOUBLE'
+				case FLOAT: mpi_type = 'MPI_FLOAT'
+				case INT: mpi_type = 'MPI_INT'
+				case STRING: mpi_type = 'MPI_CHAR'
+				default: mpi_type = 'MPI_BYTE'
+			}
 		}
 	}
 
